@@ -24,6 +24,10 @@ const lib = dlopen("./libget_visible_apps.so", {
 		args: [],
 		returns: FFIType.cstring
 	},
+	get_chrome_current_tab: {
+		args: [],
+		returns: FFIType.cstring
+	},
 	free_visible_windows: {
 		args: [FFIType.ptr],
 		returns: FFIType.void
@@ -104,8 +108,22 @@ function getSafariCurrentTab(): { url: string | null; title: string | null } {
 }
 
 /**
+ * Get the URL and title of the current Chrome tab if Chrome is running
+ */
+function getChromeCurrentTab(): { url: string | null; title: string | null } {
+	const result = lib.symbols.get_chrome_current_tab()
+	if (!result) return { url: null, title: null }
+
+	const parts = result.toString().split("|")
+	const url = parts[0] || null
+	const title = parts[1] || null
+
+	return { url, title }
+}
+
+/**
  * Get the list of currently visible windows with their details,
- * the frontmost application, and the current Safari tab URL and title if applicable
+ * the frontmost application, and the current Safari or Chrome tab URL and title if applicable
  */
 export function getRunningApplications(): {
 	windows: WindowDetails[]
@@ -120,11 +138,15 @@ export function getRunningApplications(): {
 	const frontmostWindow = windows.find((window) => window.isFrontmost)
 	const frontmostApp = frontmostWindow ? frontmostWindow.bundleIdentifier : null
 
-	// Get Safari tab info if Safari is the frontmost app
+	// Get tab info if frontmost app is Safari or Chrome
 	let frontmostTabUrl: string | null = null
 	let frontmostTabTitle: string | null = null
 	if (frontmostApp === "com.apple.Safari") {
 		const tabInfo = getSafariCurrentTab()
+		frontmostTabUrl = tabInfo.url
+		frontmostTabTitle = tabInfo.title
+	} else if (frontmostApp === "com.google.Chrome") {
+		const tabInfo = getChromeCurrentTab()
 		frontmostTabUrl = tabInfo.url
 		frontmostTabTitle = tabInfo.title
 	}

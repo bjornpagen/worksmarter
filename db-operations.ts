@@ -135,9 +135,10 @@ export async function recordSnapshotData(
 				)
 
 				// Determine if this window should have tab details
-				const isActiveSafariWindow =
-					windowDetail.bundleIdentifier === "com.apple.Safari" &&
-					frontmostApp === "com.apple.Safari" &&
+				const isActiveBrowserWindow =
+					(windowDetail.bundleIdentifier === "com.apple.Safari" ||
+					 windowDetail.bundleIdentifier === "com.google.Chrome") &&
+					frontmostApp === windowDetail.bundleIdentifier &&
 					windowDetail.title === frontmostTabTitle
 
 				// Record window details
@@ -148,8 +149,8 @@ export async function recordSnapshotData(
 					height: windowDetail.height,
 					title: windowDetail.title,
 					is_frontmost: windowDetail.isFrontmost,
-					tab_url: isActiveSafariWindow ? frontmostTabUrl : null,
-					tab_title: isActiveSafariWindow ? frontmostTabTitle : null
+					tab_url: isActiveBrowserWindow ? frontmostTabUrl : null,
+					tab_title: isActiveBrowserWindow ? frontmostTabTitle : null
 				})
 			}
 

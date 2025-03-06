@@ -153,6 +153,55 @@ const char* get_safari_current_tab() {
     }
 }
 
+// Exported function to get the current Chrome tab URL and title
+const char* get_chrome_current_tab() {
+    @try {
+        SBApplication *chrome = [SBApplication applicationWithBundleIdentifier:@"com.google.Chrome"];
+        if (!chrome || ![chrome isRunning]) {
+            char *empty = (char*)malloc(1);
+            if (empty) empty[0] = '\0';
+            return empty;
+        }
+
+        id chromeApp = chrome;
+        NSArray *windows = [chromeApp windows];
+        if (!windows || [windows count] == 0) {
+            char *empty = (char*)malloc(1);
+            if (empty) empty[0] = '\0';
+            return empty;
+        }
+
+        id frontWindow = windows[0];
+        if (!frontWindow || ![frontWindow respondsToSelector:@selector(activeTab)]) {
+            char *empty = (char*)malloc(1);
+            if (empty) empty[0] = '\0';
+            return empty;
+        }
+
+        id currentTab = [frontWindow activeTab];
+        if (!currentTab || ![currentTab respondsToSelector:@selector(URL)] || ![currentTab respondsToSelector:@selector(title)]) {
+            char *empty = (char*)malloc(1);
+            if (empty) empty[0] = '\0';
+            return empty;
+        }
+
+        NSString *url = [currentTab URL];
+        NSString *title = [currentTab title];
+
+        NSString *resultString = [NSString stringWithFormat:@"%@|%@", url, title];
+        const char *utf8String = [resultString UTF8String];
+        size_t length = strlen(utf8String) + 1;
+        char *result = (char*)malloc(length);
+        if (!result) return NULL;
+        strcpy(result, utf8String);
+        return result;
+    } @catch (NSException *exception) {
+        char *empty = (char*)malloc(1);
+        if (empty) empty[0] = '\0';
+        return empty;
+    }
+}
+
 // Exported function to free memory for windows
 void free_visible_windows(char* ptr) {
     if (ptr) free(ptr);
