@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "aaa4ec62-1428-46c4-b16d-2b3afedc7bde",
+  "id": "15bf2284-5be4-42ca-8a28-a8d2d4f81641",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "apps": {
@@ -50,70 +50,11 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "screenshot_analyses": {
-      "name": "screenshot_analyses",
+    "snapshot_apps": {
+      "name": "snapshot_apps",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "screenshot_id": {
-          "name": "screenshot_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "screenshot_analyses_screenshot_id_screenshots_id_fk": {
-          "name": "screenshot_analyses_screenshot_id_screenshots_id_fk",
-          "tableFrom": "screenshot_analyses",
-          "tableTo": "screenshots",
-          "columnsFrom": [
-            "screenshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "screenshot_apps": {
-      "name": "screenshot_apps",
-      "columns": {
-        "screenshot_id": {
-          "name": "screenshot_id",
+        "snapshot_id": {
+          "name": "snapshot_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -129,12 +70,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "screenshot_apps_screenshot_id_screenshots_id_fk": {
-          "name": "screenshot_apps_screenshot_id_screenshots_id_fk",
-          "tableFrom": "screenshot_apps",
-          "tableTo": "screenshots",
+        "snapshot_apps_snapshot_id_snapshots_id_fk": {
+          "name": "snapshot_apps_snapshot_id_snapshots_id_fk",
+          "tableFrom": "snapshot_apps",
+          "tableTo": "snapshots",
           "columnsFrom": [
-            "screenshot_id"
+            "snapshot_id"
           ],
           "columnsTo": [
             "id"
@@ -142,9 +83,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "screenshot_apps_app_id_apps_id_fk": {
-          "name": "screenshot_apps_app_id_apps_id_fk",
-          "tableFrom": "screenshot_apps",
+        "snapshot_apps_app_id_apps_id_fk": {
+          "name": "snapshot_apps_app_id_apps_id_fk",
+          "tableFrom": "snapshot_apps",
           "tableTo": "apps",
           "columnsFrom": [
             "app_id"
@@ -157,19 +98,19 @@
         }
       },
       "compositePrimaryKeys": {
-        "screenshot_apps_screenshot_id_app_id_pk": {
+        "snapshot_apps_snapshot_id_app_id_pk": {
           "columns": [
-            "screenshot_id",
+            "snapshot_id",
             "app_id"
           ],
-          "name": "screenshot_apps_screenshot_id_app_id_pk"
+          "name": "snapshot_apps_snapshot_id_app_id_pk"
         }
       },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "screenshots": {
-      "name": "screenshots",
+    "snapshots": {
+      "name": "snapshots",
       "columns": {
         "id": {
           "name": "id",
@@ -185,13 +126,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "file_path": {
-          "name": "file_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "frontmost_app_id": {
           "name": "frontmost_app_id",
           "type": "integer",
@@ -202,9 +136,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "screenshots_frontmost_app_id_apps_id_fk": {
-          "name": "screenshots_frontmost_app_id_apps_id_fk",
-          "tableFrom": "screenshots",
+        "snapshots_frontmost_app_id_apps_id_fk": {
+          "name": "snapshots_frontmost_app_id_apps_id_fk",
+          "tableFrom": "snapshots",
           "tableTo": "apps",
           "columnsFrom": [
             "frontmost_app_id"

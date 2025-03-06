@@ -102,11 +102,10 @@ async function getAppId(
 }
 
 /**
- * Record screenshot and application data in the database
- * Now includes frontmost app tracking
+ * Record snapshot and application data in the database
+ * Includes frontmost app tracking
  */
-export async function recordScreenshotData(
-	filepath: string,
+export async function recordSnapshotData(
 	detectedApps: DetectedApp[],
 	frontmostApp: string | null
 ): Promise<number> {
@@ -126,66 +125,38 @@ export async function recordScreenshotData(
 				frontmostAppId = await getAppId(tx, frontmostApp, matchingApp?.name)
 			}
 
-			// Insert screenshot record with frontmost app ID
-			const screenshotInsert = await tx
-				.insert(schema.screenshots)
+			// Insert snapshot record with frontmost app ID
+			const snapshotInsert = await tx
+				.insert(schema.snapshots)
 				.values({
 					timestamp: now,
-					file_path: filepath,
 					frontmost_app_id: frontmostAppId
 				})
-				.returning({ id: schema.screenshots.id })
+				.returning({ id: schema.snapshots.id })
 
-			const screenshotId = screenshotInsert[0].id as number
+			const snapshotId = snapshotInsert[0].id as number
 
 			// Process each detected application
 			for (const app of detectedApps) {
 				// Get or create the app ID
 				const appId = await getAppId(tx, app.bundleIdentifier, app.name)
 
-				// Create relationship between screenshot and app
-				await tx.insert(schema.screenshot_apps).values({
-					screenshot_id: screenshotId,
+				// Create relationship between snapshot and app
+				await tx.insert(schema.snapshot_apps).values({
+					snapshot_id: snapshotId,
 					app_id: appId
 				})
 			}
 
-			return screenshotId
+			return snapshotId
 		})
 	)
 	if (transactionResult.error) {
 		throw Errors.wrap(
 			transactionResult.error,
-			"Failed to record screenshot data in transaction"
+			"Failed to record snapshot data in transaction"
 		)
 	}
 
-	return transactionResult.data as number
-}
-
-/**
- * Record screenshot analysis data in the database
- */
-export async function recordAnalysisData(
-	screenshotId: number,
-	category: string,
-	description: string
-): Promise<void> {
-	const db = getDb()
-	const transactionResult = await Errors.try(
-		db.transaction(async (tx) => {
-			await tx.insert(schema.screenshot_analyses).values({
-				screenshot_id: screenshotId,
-				category: category,
-				description: description,
-				created_at: new Date()
-			})
-		})
-	)
-	if (transactionResult.error) {
-		throw Errors.wrap(
-			transactionResult.error,
-			"Failed to record screenshot analysis data in transaction"
-		)
-	}
+	return transactionResult.data
 }
