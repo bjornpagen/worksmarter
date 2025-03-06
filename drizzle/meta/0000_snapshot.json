@@ -1,56 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3075cd00-fed6-4a47-988e-5d3f061f8096",
+  "id": "f5d59cba-d2cc-4244-9fcd-5b304bcd521e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "app_sessions": {
-      "name": "app_sessions",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "app_id": {
-          "name": "app_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "launch_time": {
-          "name": "launch_time",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "app_sessions_app_id_apps_id_fk": {
-          "name": "app_sessions_app_id_apps_id_fk",
-          "tableFrom": "app_sessions",
-          "tableTo": "apps",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "apps": {
-      "name": "apps",
+    "app": {
+      "name": "app",
       "columns": {
         "id": {
           "name": "id",
@@ -82,8 +37,8 @@
         }
       },
       "indexes": {
-        "apps_bundle_id_unique": {
-          "name": "apps_bundle_id_unique",
+        "app_bundle_id_unique": {
+          "name": "app_bundle_id_unique",
           "columns": [
             "bundle_id"
           ],
@@ -95,18 +50,18 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "snapshot_app_sessions": {
-      "name": "snapshot_app_sessions",
+    "snapshot": {
+      "name": "snapshot",
       "columns": {
-        "snapshot_id": {
-          "name": "snapshot_id",
+        "id": {
+          "name": "id",
           "type": "integer",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": true
         },
-        "app_session_id": {
-          "name": "app_session_id",
+        "timestamp": {
+          "name": "timestamp",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -114,48 +69,13 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "snapshot_app_sessions_snapshot_id_snapshots_id_fk": {
-          "name": "snapshot_app_sessions_snapshot_id_snapshots_id_fk",
-          "tableFrom": "snapshot_app_sessions",
-          "tableTo": "snapshots",
-          "columnsFrom": [
-            "snapshot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "snapshot_app_sessions_app_session_id_app_sessions_id_fk": {
-          "name": "snapshot_app_sessions_app_session_id_app_sessions_id_fk",
-          "tableFrom": "snapshot_app_sessions",
-          "tableTo": "app_sessions",
-          "columnsFrom": [
-            "app_session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "snapshot_app_sessions_snapshot_id_app_session_id_pk": {
-          "columns": [
-            "snapshot_id",
-            "app_session_id"
-          ],
-          "name": "snapshot_app_sessions_snapshot_id_app_session_id_pk"
-        }
-      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "snapshot_windows": {
-      "name": "snapshot_windows",
+    "window": {
+      "name": "window",
       "columns": {
         "id": {
           "name": "id",
@@ -171,8 +91,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "app_session_id": {
-          "name": "app_session_id",
+        "app_id": {
+          "name": "app_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -212,14 +132,21 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "tab_title": {
+          "name": "tab_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "snapshot_windows_snapshot_id_snapshots_id_fk": {
-          "name": "snapshot_windows_snapshot_id_snapshots_id_fk",
-          "tableFrom": "snapshot_windows",
-          "tableTo": "snapshots",
+        "window_snapshot_id_snapshot_id_fk": {
+          "name": "window_snapshot_id_snapshot_id_fk",
+          "tableFrom": "window",
+          "tableTo": "snapshot",
           "columnsFrom": [
             "snapshot_id"
           ],
@@ -229,12 +156,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "snapshot_windows_app_session_id_app_sessions_id_fk": {
-          "name": "snapshot_windows_app_session_id_app_sessions_id_fk",
-          "tableFrom": "snapshot_windows",
-          "tableTo": "app_sessions",
+        "window_app_id_app_id_fk": {
+          "name": "window_app_id_app_id_fk",
+          "tableFrom": "window",
+          "tableTo": "app",
           "columnsFrom": [
-            "app_session_id"
+            "app_id"
           ],
           "columnsTo": [
             "id"
@@ -245,31 +172,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "snapshots": {
-      "name": "snapshots",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "timestamp": {
-          "name": "timestamp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+      "checkConstraints": {
+        "title_check": {
+          "name": "title_check",
+          "value": "\"window\".\"title\" != ''"
         }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      }
     }
   },
   "views": {},

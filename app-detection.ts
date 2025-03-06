@@ -1,4 +1,5 @@
 import { dlopen, FFIType, CString } from "bun:ffi"
+import { MIN_WINDOW_AREA } from "./constants"
 
 /**
  * Window details including app information, size, title, and frontmost status
@@ -6,7 +7,6 @@ import { dlopen, FFIType, CString } from "bun:ffi"
 export interface WindowDetails {
 	appName: string
 	bundleIdentifier: string
-	launchTime: number
 	windowId: number
 	width: number
 	height: number
@@ -16,7 +16,6 @@ export interface WindowDetails {
 
 // Load the dynamic library for getting visible applications and windows
 const lib = dlopen("./libget_visible_apps.so", {
-	// New functions
 	get_visible_windows: {
 		args: [],
 		returns: FFIType.ptr
@@ -26,20 +25,6 @@ const lib = dlopen("./libget_visible_apps.so", {
 		returns: FFIType.cstring
 	},
 	free_visible_windows: {
-		args: [FFIType.ptr],
-		returns: FFIType.void
-	},
-
-	// Legacy functions (kept for backward compatibility)
-	get_visible_apps: {
-		args: [],
-		returns: FFIType.ptr
-	},
-	get_frontmost_app: {
-		args: [],
-		returns: FFIType.cstring
-	},
-	free_visible_apps: {
 		args: [FFIType.ptr],
 		returns: FFIType.void
 	}
@@ -57,53 +42,76 @@ function getWindowDetails(): WindowDetails[] {
 	const windowList = new CString(windowListPtr)
 	lib.symbols.free_visible_windows(windowListPtr)
 
+	const seenWindowIds = new Set<number>()
 	return windowList
 		.split("\n")
 		.filter((line) => line.trim() !== "")
 		.map((line) => {
-			const [
+			const parts = line.split("|")
+			if (parts.length < 8) return null // Ensure sufficient parts
+
+			const appName = parts[0]
+			const bundleIdentifier = parts[1]
+			// Ignore launchTime at index 2
+			const windowId = Number.parseInt(parts[3])
+
+			if (!Number.isInteger(windowId) || seenWindowIds.has(windowId))
+				return null
+			seenWindowIds.add(windowId)
+
+			const width = Number.parseInt(parts[4])
+			const height = Number.parseInt(parts[5])
+			const title = parts[6]
+			const isFrontmost = parts[7] === "1"
+
+			// Filter out windows with invalid dimensions, empty titles, or area below threshold
+			if (
+				!Number.isInteger(width) ||
+				!Number.isInteger(height) ||
+				width <= 0 ||
+				height <= 0 ||
+				title === "" ||
+				width * height < MIN_WINDOW_AREA
+			) {
+				return null
+			}
+
+			return {
 				appName,
 				bundleIdentifier,
-				launchTime,
 				windowId,
 				width,
 				height,
 				title,
 				isFrontmost
-			] = line.split("|")
-
-			return {
-				appName,
-				bundleIdentifier,
-				launchTime: Number.parseInt(launchTime),
-				windowId: Number.parseInt(windowId),
-				width: Number.parseInt(width),
-				height: Number.parseInt(height),
-				title,
-				isFrontmost: isFrontmost === "1"
 			}
 		})
+		.filter((window): window is WindowDetails => window !== null)
 }
 
 /**
- * Get the URL of the current Safari tab if Safari is running
+ * Get the URL and title of the current Safari tab if Safari is running
  */
-function getSafariCurrentTab(): string | null {
-	const url = lib.symbols.get_safari_current_tab()
-	if (!url) {
-		return null
-	}
-	return url.toString() || null
+function getSafariCurrentTab(): { url: string | null; title: string | null } {
+	const result = lib.symbols.get_safari_current_tab()
+	if (!result) return { url: null, title: null }
+
+	const parts = result.toString().split("|")
+	const url = parts[0] || null
+	const title = parts[1] || null
+
+	return { url, title }
 }
 
 /**
  * Get the list of currently visible windows with their details,
- * the frontmost application, and the current Safari tab URL if applicable
+ * the frontmost application, and the current Safari tab URL and title if applicable
  */
 export function getRunningApplications(): {
 	windows: WindowDetails[]
 	frontmostApp: string | null
 	frontmostTabUrl: string | null
+	frontmostTabTitle: string | null
 } {
 	// Get detailed window information
 	const windows = getWindowDetails()
@@ -112,19 +120,14 @@ export function getRunningApplications(): {
 	const frontmostWindow = windows.find((window) => window.isFrontmost)
 	const frontmostApp = frontmostWindow ? frontmostWindow.bundleIdentifier : null
 
-	// Get Safari tab URL if Safari is the frontmost app
+	// Get Safari tab info if Safari is the frontmost app
 	let frontmostTabUrl: string | null = null
+	let frontmostTabTitle: string | null = null
 	if (frontmostApp === "com.apple.Safari") {
-		frontmostTabUrl = getSafariCurrentTab()
+		const tabInfo = getSafariCurrentTab()
+		frontmostTabUrl = tabInfo.url
+		frontmostTabTitle = tabInfo.title
 	}
 
-	return { windows, frontmostApp, frontmostTabUrl }
-}
-
-/**
- * @deprecated Use getRunningApplications() which provides more detailed information
- */
-export interface DetectedApp {
-	bundleIdentifier: string
-	name: string
+	return { windows, frontmostApp, frontmostTabUrl, frontmostTabTitle }
 }

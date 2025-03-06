@@ -13,9 +13,17 @@ NSString* getVisibleWindowsNSString() {
     if (!windowList) return @"";
 
     NSMutableArray<NSString*> *windowEntries = [NSMutableArray array];
+    NSMutableSet<NSNumber*> *seenWindowIds = [NSMutableSet set]; // Track unique window IDs
     CFIndex count = CFArrayGetCount(windowList);
     for (CFIndex i = 0; i < count; i++) {
         CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
+        CFNumberRef windowIdRef = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowNumber);
+        int windowId;
+        CFNumberGetValue(windowIdRef, kCFNumberIntType, &windowId);
+        NSNumber *windowIdNum = @(windowId);
+        if ([seenWindowIds containsObject:windowIdNum]) continue; // Skip duplicates
+        [seenWindowIds addObject:windowIdNum];
+
         CFNumberRef pidRef = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowOwnerPID);
         if (!pidRef) continue;
         int pid;
@@ -35,13 +43,8 @@ NSString* getVisibleWindowsNSString() {
         }
         if (!name) name = app.bundleIdentifier;
 
-        // Get launch time
+        // Get launch time (kept in output format for backward compatibility)
         NSTimeInterval launchTime = [app.launchDate timeIntervalSince1970];
-
-        // Get window ID
-        CFNumberRef windowIdRef = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowNumber);
-        int windowId;
-        CFNumberGetValue(windowIdRef, kCFNumberIntType, &windowId);
 
         // Get window dimensions
         CFDictionaryRef boundsDict = (CFDictionaryRef)CFDictionaryGetValue(windowInfo, kCGWindowBounds);
@@ -88,13 +91,12 @@ char* get_visible_windows() {
     return result;
 }
 
-// Exported function to get the current Safari tab URL
+// Exported function to get the current Safari tab URL and title
 const char* get_safari_current_tab() {
     @try {
         // Get Safari application instance
         SBApplication *safari = [SBApplication applicationWithBundleIdentifier:@"com.apple.Safari"];
         if (!safari || ![safari isRunning]) {
-            NSLog(@"Safari is not running or unavailable");
             char *empty = (char*)malloc(1);
             if (empty) empty[0] = '\0';
             return empty;
@@ -103,90 +105,48 @@ const char* get_safari_current_tab() {
         id safariApp = safari;
         NSArray *windows = [safariApp windows];
         if (!windows || [windows count] == 0) {
-            NSLog(@"No Safari windows found");
             char *empty = (char*)malloc(1);
             if (empty) empty[0] = '\0';
             return empty;
         }
 
         id frontWindow = windows[0];
-        if (!frontWindow) {
-            NSLog(@"Front window is nil");
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
-        }
-
-        // Check if frontWindow supports currentTab
-        if (![frontWindow respondsToSelector:@selector(currentTab)]) {
-            NSLog(@"frontWindow does not respond to currentTab");
+        if (!frontWindow || ![frontWindow respondsToSelector:@selector(currentTab)]) {
             char *empty = (char*)malloc(1);
             if (empty) empty[0] = '\0';
             return empty;
         }
 
         id currentTab = [frontWindow currentTab];
-        if (!currentTab) {
-            NSLog(@"No current tab in front window");
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
-        }
-
-        // Check if currentTab supports URL
-        if (![currentTab respondsToSelector:@selector(URL)]) {
-            NSLog(@"currentTab does not respond to URL");
+        if (!currentTab || ![currentTab respondsToSelector:@selector(URL)] || ![currentTab respondsToSelector:@selector(name)]) {
             char *empty = (char*)malloc(1);
             if (empty) empty[0] = '\0';
             return empty;
         }
 
         id urlObject = [currentTab URL];
-        if (!urlObject) {
-            NSLog(@"URL is nil for current tab");
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
-        }
+        id titleObject = [currentTab name];
+        NSString *urlString = @"";
+        NSString *titleString = @"";
 
-        // Handle the URL object dynamically based on its type
-        NSString *urlString;
         if ([urlObject isKindOfClass:[NSURL class]]) {
             urlString = [(NSURL *)urlObject absoluteString];
         } else if ([urlObject isKindOfClass:[NSString class]]) {
             urlString = (NSString *)urlObject;
-        } else {
-            NSLog(@"URL object is neither NSURL nor NSString: %@", [urlObject class]);
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
         }
 
-        if (!urlString) {
-            NSLog(@"Failed to get URL string");
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
+        if ([titleObject isKindOfClass:[NSString class]]) {
+            titleString = (NSString *)titleObject;
         }
 
-        const char *utf8String = [urlString UTF8String];
-        if (!utf8String) {
-            NSLog(@"Failed to convert URL string to UTF-8");
-            char *empty = (char*)malloc(1);
-            if (empty) empty[0] = '\0';
-            return empty;
-        }
-
+        NSString *resultString = [NSString stringWithFormat:@"%@|%@", urlString, titleString];
+        const char *utf8String = [resultString UTF8String];
         size_t length = strlen(utf8String) + 1;
         char *result = (char*)malloc(length);
-        if (!result) {
-            NSLog(@"Memory allocation failed for URL string");
-            return NULL;
-        }
+        if (!result) return NULL;
         strcpy(result, utf8String);
         return result;
     } @catch (NSException *exception) {
-        NSLog(@"Exception in get_safari_current_tab: %@", exception);
         char *empty = (char*)malloc(1);
         if (empty) empty[0] = '\0';
         return empty;
@@ -195,20 +155,5 @@ const char* get_safari_current_tab() {
 
 // Exported function to free memory for windows
 void free_visible_windows(char* ptr) {
-    if (ptr) free(ptr);
-}
-
-// Legacy functions (unchanged for brevity)
-char* get_visible_apps() {
-    // Implementation omitted for brevity; assumed correct
-    return NULL; // Replace with actual implementation if needed
-}
-
-const char* get_frontmost_app() {
-    // Implementation omitted for brevity; assumed correct
-    return NULL; // Replace with actual implementation if needed
-}
-
-void free_visible_apps(char* ptr) {
     if (ptr) free(ptr);
 }

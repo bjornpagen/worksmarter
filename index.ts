@@ -12,7 +12,7 @@ import dotenv from "dotenv"
 export async function captureAndRecord(): Promise<void> {
 	const startTime = Date.now()
 
-	// Get window details, frontmost app, and Safari tab URL if applicable
+	// Get window details, frontmost app, and Safari tab info if applicable
 	const runningAppsResult = await Errors.try(
 		Promise.resolve(getRunningApplications())
 	)
@@ -22,11 +22,11 @@ export async function captureAndRecord(): Promise<void> {
 			"Failed to get window details"
 		)
 	}
-	const { windows, frontmostApp, frontmostTabUrl } = runningAppsResult.data
+	const { windows, frontmostApp, frontmostTabUrl, frontmostTabTitle } = runningAppsResult.data
 
 	// Record the data
 	const recordResult = await Errors.try(
-		recordSnapshotData(windows, frontmostApp, frontmostTabUrl)
+		recordSnapshotData(windows, frontmostApp, frontmostTabUrl, frontmostTabTitle)
 	)
 	if (recordResult.error) {
 		throw Errors.wrap(recordResult.error, "Snapshot metadata error")
@@ -48,10 +48,7 @@ export async function startCapturing(): Promise<void> {
 	async function captureLoop() {
 		const captureResult = await Errors.try(captureAndRecord())
 		if (captureResult.error) {
-			throw Errors.wrap(
-				captureResult.error,
-				"Failed to capture and record snapshot"
-			)
+			console.error("Error during capture and record:", captureResult.error)
 		}
 
 		setTimeout(captureLoop, CAPTURE_INTERVAL_MS)
@@ -68,7 +65,7 @@ if (require.main === module) {
 	console.log(
 		`WorkSmarter started. Capturing snapshots every ${CAPTURE_INTERVAL_MS / 1000} seconds.`
 	)
-	console.log("✓ Tracking window sizes, titles, application start times, and Safari tabs")
+	console.log("✓ Tracking window sizes, titles, and Safari tabs (URL and title)")
 	console.log("Press Ctrl+C to stop.")
 
 	process.on("SIGINT", async () => {
