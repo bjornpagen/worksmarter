@@ -5,8 +5,7 @@ import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
  */
 export const snapshots = sqliteTable("snapshots", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
-	timestamp: integer("timestamp", { mode: "timestamp" }).notNull(),
-	frontmost_app_id: integer("frontmost_app_id").references(() => apps.id)
+	timestamp: integer("timestamp", { mode: "timestamp" }).notNull()
 })
 
 /**
@@ -20,22 +19,44 @@ export const apps = sqliteTable("apps", {
 })
 
 /**
- * Pivot table connecting snapshots to applications
- * that were open at the time of capture
+ * Tracks application session instances with launch times
  */
-export const snapshot_apps = sqliteTable(
-	"snapshot_apps",
+export const app_sessions = sqliteTable("app_sessions", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	app_id: integer("app_id").references(() => apps.id).notNull(),
+	launch_time: integer("launch_time", { mode: "timestamp" }).notNull()
+})
+
+/**
+ * Pivot table connecting snapshots to app sessions
+ */
+export const snapshot_app_sessions = sqliteTable(
+	"snapshot_app_sessions",
 	{
 		snapshot_id: integer("snapshot_id")
 			.references(() => snapshots.id)
 			.notNull(),
-		app_id: integer("app_id")
-			.references(() => apps.id)
+		app_session_id: integer("app_session_id")
+			.references(() => app_sessions.id)
 			.notNull()
 	},
 	(table) => {
 		return {
-			pk: primaryKey({ columns: [table.snapshot_id, table.app_id] })
+			pk: primaryKey({ columns: [table.snapshot_id, table.app_session_id] })
 		}
 	}
 )
+
+/**
+ * Stores window-specific details per snapshot
+ */
+export const snapshot_windows = sqliteTable("snapshot_windows", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	snapshot_id: integer("snapshot_id").references(() => snapshots.id).notNull(),
+	app_session_id: integer("app_session_id").references(() => app_sessions.id).notNull(),
+	width: integer("width").notNull(),
+	height: integer("height").notNull(),
+	title: text("title").notNull(),
+	is_frontmost: integer("is_frontmost", { mode: "boolean" }).notNull(),
+	tab_url: text("tab_url")
+})

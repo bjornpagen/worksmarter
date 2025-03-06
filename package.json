@@ -8,7 +8,7 @@
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
 		"build": "bun build index.ts --outdir ./dist",
-		"build:ffi": "clang -dynamiclib -o libget_visible_apps.so get_visible_apps.m -framework CoreGraphics -framework AppKit -arch x86_64 -arch arm64",
+		"build:ffi": "clang -dynamiclib -o libget_visible_apps.so get_visible_apps.m -framework CoreGraphics -framework AppKit -framework ScriptingBridge -arch x86_64 -arch arm64",
 		"db:push": "drizzle-kit push:sqlite",
 		"db:migrate": "bun drizzle-kit migrate",
 		"db:generate": "bun drizzle-kit generate"

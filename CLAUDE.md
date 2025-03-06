@@ -45,3 +45,4 @@ WorkSmarter is a macOS application that captures screenshots every 5 seconds and
   - Always propagate errors by throwing via Errors.wrap or new Error instead of logging
 - **Asynchronous Code**: Use async/await for file system and shell operations
 - **Comments**: Document key functions and complex logic
+- **Migrations**: Never generate migrations, these are handled by a human developer

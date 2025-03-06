@@ -1,73 +1,130 @@
 import { dlopen, FFIType, CString } from "bun:ffi"
 
 /**
- * An app detected on screen with details about it
+ * Window details including app information, size, title, and frontmost status
  */
-export interface DetectedApp {
+export interface WindowDetails {
+	appName: string
 	bundleIdentifier: string
-	name: string
+	launchTime: number
+	windowId: number
+	width: number
+	height: number
+	title: string
+	isFrontmost: boolean
 }
 
-// Load the dynamic library for getting visible applications
+// Load the dynamic library for getting visible applications and windows
 const lib = dlopen("./libget_visible_apps.so", {
+	// New functions
+	get_visible_windows: {
+		args: [],
+		returns: FFIType.ptr
+	},
+	get_safari_current_tab: {
+		args: [],
+		returns: FFIType.cstring
+	},
+	free_visible_windows: {
+		args: [FFIType.ptr],
+		returns: FFIType.void
+	},
+
+	// Legacy functions (kept for backward compatibility)
 	get_visible_apps: {
-		args: [], // No inputs needed
-		returns: FFIType.ptr // Returns a pointer
+		args: [],
+		returns: FFIType.ptr
 	},
 	get_frontmost_app: {
-		args: [], // No inputs needed
-		returns: FFIType.cstring // Returns a C string directly
+		args: [],
+		returns: FFIType.cstring
 	},
 	free_visible_apps: {
-		args: [FFIType.ptr], // Takes a pointer to the string
-		returns: FFIType.void // Doesn't return anything
+		args: [FFIType.ptr],
+		returns: FFIType.void
 	}
 })
 
 /**
- * Get names of applications with visible windows using native macOS API
+ * Get detailed information about all visible windows using native macOS API
  */
-function getVisibleApplications(): string[] {
-	const appListPtr = lib.symbols.get_visible_apps()
-	if (!appListPtr) {
-		throw new Error("Couldn't get the list of visible applications")
+function getWindowDetails(): WindowDetails[] {
+	const windowListPtr = lib.symbols.get_visible_windows()
+	if (!windowListPtr) {
+		throw new Error("Couldn't get the list of visible windows")
 	}
 
-	const appList = new CString(appListPtr)
-	lib.symbols.free_visible_apps(appListPtr)
+	const windowList = new CString(windowListPtr)
+	lib.symbols.free_visible_windows(windowListPtr)
 
-	return appList.split("\n").filter((line) => line.trim() !== "")
+	return windowList
+		.split("\n")
+		.filter((line) => line.trim() !== "")
+		.map((line) => {
+			const [
+				appName,
+				bundleIdentifier,
+				launchTime,
+				windowId,
+				width,
+				height,
+				title,
+				isFrontmost
+			] = line.split("|")
+
+			return {
+				appName,
+				bundleIdentifier,
+				launchTime: Number.parseInt(launchTime),
+				windowId: Number.parseInt(windowId),
+				width: Number.parseInt(width),
+				height: Number.parseInt(height),
+				title,
+				isFrontmost: isFrontmost === "1"
+			}
+		})
 }
 
 /**
- * Get the frontmost application bundle identifier
+ * Get the URL of the current Safari tab if Safari is running
  */
-function getFrontmostApp(): string | null {
-	const frontmostAppId = lib.symbols.get_frontmost_app()
-	if (!frontmostAppId) {
+function getSafariCurrentTab(): string | null {
+	const url = lib.symbols.get_safari_current_tab()
+	if (!url) {
 		return null
 	}
-
-	// Convert CString to JavaScript string
-	const frontmostAppIdString = frontmostAppId.toString()
-	return frontmostAppIdString === "" ? null : frontmostAppIdString
+	return url.toString() || null
 }
 
 /**
- * Get the list of currently running applications with visible windows
- * and the frontmost application
+ * Get the list of currently visible windows with their details,
+ * the frontmost application, and the current Safari tab URL if applicable
  */
 export function getRunningApplications(): {
-	visibleApps: DetectedApp[]
+	windows: WindowDetails[]
 	frontmostApp: string | null
+	frontmostTabUrl: string | null
 } {
-	const appNames = getVisibleApplications()
-	const visibleApps: DetectedApp[] = appNames.map((line) => {
-		const [name, bundleIdentifier] = line.split("|")
-		return { name, bundleIdentifier }
-	})
+	// Get detailed window information
+	const windows = getWindowDetails()
 
-	const frontmostApp = getFrontmostApp()
+	// Find frontmost window/app
+	const frontmostWindow = windows.find((window) => window.isFrontmost)
+	const frontmostApp = frontmostWindow ? frontmostWindow.bundleIdentifier : null
 
-	return { visibleApps, frontmostApp }
+	// Get Safari tab URL if Safari is the frontmost app
+	let frontmostTabUrl: string | null = null
+	if (frontmostApp === "com.apple.Safari") {
+		frontmostTabUrl = getSafariCurrentTab()
+	}
+
+	return { windows, frontmostApp, frontmostTabUrl }
+}
+
+/**
+ * @deprecated Use getRunningApplications() which provides more detailed information
+ */
+export interface DetectedApp {
+	bundleIdentifier: string
+	name: string
 }

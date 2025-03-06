@@ -1,8 +1,8 @@
 import { Errors } from "./errors.ts"
 import { getDb } from "./db/index"
 import * as schema from "./db/schema"
-import { eq } from "drizzle-orm"
-import type { DetectedApp } from "./app-detection"
+import { eq, and, gte, lte } from "drizzle-orm"
+import type { WindowDetails } from "./app-detection"
 import { anthropic } from "./anthropic.ts"
 import type { SQLiteTransaction } from "drizzle-orm/sqlite-core"
 import type { ExtractTablesWithRelations } from "drizzle-orm"
@@ -102,50 +102,152 @@ async function getAppId(
 }
 
 /**
+ * Gets or creates an app session for the given app ID and launch time
+ */
+async function getAppSessionId(
+	tx: SQLiteTransaction<
+		"sync",
+		void,
+		Record<string, unknown>,
+		ExtractTablesWithRelations<Record<string, unknown>>
+	>,
+	appId: number,
+	launchTime: number
+): Promise<number> {
+	// Look for an existing session within a reasonable time window (10 seconds)
+	// This helps prevent duplicate sessions due to small timestamp variations
+	const timeWindow = 10
+	const existingSession = await tx
+		.select({ id: schema.app_sessions.id })
+		.from(schema.app_sessions)
+		.where(
+			and(
+				eq(schema.app_sessions.app_id, appId),
+				// Launch time should be within timeWindow seconds of the stored time
+				// This is a simplification - in a production system you might want
+				// a more sophisticated approach to session tracking
+				gte(
+					schema.app_sessions.launch_time,
+					new Date((launchTime - timeWindow) * 1000)
+				),
+				lte(
+					schema.app_sessions.launch_time,
+					new Date((launchTime + timeWindow) * 1000)
+				)
+			)
+		)
+		.limit(1)
+
+	if (existingSession.length > 0) {
+		return existingSession[0].id as number
+	}
+
+	// Create a new session
+	const sessionInsertResult = await Errors.try(
+		tx
+			.insert(schema.app_sessions)
+			.values({
+				app_id: appId,
+				launch_time: new Date(launchTime * 1000) // Convert Unix timestamp to Date
+			})
+			.returning({ id: schema.app_sessions.id })
+	)
+
+	if (sessionInsertResult.error) {
+		throw Errors.wrap(
+			sessionInsertResult.error,
+			`Failed to insert app session for app ID ${appId}`
+		)
+	}
+
+	return sessionInsertResult.data[0].id as number
+}
+
+/**
  * Record snapshot and application data in the database
- * Includes frontmost app tracking
+ * Includes window details, app sessions, and Safari tab URLs
  */
 export async function recordSnapshotData(
-	detectedApps: DetectedApp[],
-	frontmostApp: string | null
+	windows: WindowDetails[],
+	frontmostApp: string | null,
+	frontmostTabUrl: string | null
 ): Promise<number> {
 	const db = getDb()
 	const transactionResult = await Errors.try(
 		db.transaction(async (tx) => {
 			const now = new Date()
 
-			// Get frontmost app ID if applicable
-			let frontmostAppId: number | null = null
-			if (frontmostApp) {
-				// Find app by bundleIdentifier and get its ID
-				// Find matching app in detectedApps array to get the name
-				const matchingApp = detectedApps.find(
-					(app) => app.bundleIdentifier === frontmostApp
-				)
-				frontmostAppId = await getAppId(tx, frontmostApp, matchingApp?.name)
-			}
-
-			// Insert snapshot record with frontmost app ID
+			// Insert snapshot record
 			const snapshotInsert = await tx
 				.insert(schema.snapshots)
 				.values({
-					timestamp: now,
-					frontmost_app_id: frontmostAppId
+					timestamp: now
 				})
 				.returning({ id: schema.snapshots.id })
 
 			const snapshotId = snapshotInsert[0].id as number
 
-			// Process each detected application
-			for (const app of detectedApps) {
-				// Get or create the app ID
-				const appId = await getAppId(tx, app.bundleIdentifier, app.name)
+			// Group windows by app to avoid duplicate sessions
+			const appMap = new Map<
+				string,
+				{
+					name: string
+					launchTime: number
+					windows: WindowDetails[]
+				}
+			>()
 
-				// Create relationship between snapshot and app
-				await tx.insert(schema.snapshot_apps).values({
+			for (const window of windows) {
+				const key = window.bundleIdentifier
+				if (!appMap.has(key)) {
+					appMap.set(key, {
+						name: window.appName,
+						launchTime: window.launchTime,
+						windows: []
+					})
+				}
+				const appEntry = appMap.get(key)
+				if (appEntry) {
+					appEntry.windows.push(window)
+				}
+			}
+
+			// Process each application
+			for (const [
+				bundleId,
+				{ name, launchTime, windows }
+			] of appMap.entries()) {
+				// Get or create the app ID
+				const appId = await getAppId(tx, bundleId, name)
+
+				// Get or create app session
+				const appSessionId = await getAppSessionId(tx, appId, launchTime)
+
+				// Link session to snapshot
+				await tx.insert(schema.snapshot_app_sessions).values({
 					snapshot_id: snapshotId,
-					app_id: appId
+					app_session_id: appSessionId
 				})
+
+				// Record each window for this app
+				for (const window of windows) {
+					// Determine if this window should have a tab URL
+					const isActiveSafariWindow =
+						window.isFrontmost &&
+						window.bundleIdentifier === "com.apple.Safari" &&
+						Boolean(frontmostTabUrl) &&
+						frontmostApp === "com.apple.Safari"
+
+					await tx.insert(schema.snapshot_windows).values({
+						snapshot_id: snapshotId,
+						app_session_id: appSessionId,
+						width: window.width,
+						height: window.height,
+						title: window.title,
+						is_frontmost: window.isFrontmost,
+						tab_url: isActiveSafariWindow ? frontmostTabUrl : null
+					})
+				}
 			}
 
 			return snapshotId

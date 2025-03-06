@@ -7,26 +7,26 @@ import dotenv from "dotenv"
 
 /**
  * Capture app data and record it
- * Tracks visible applications and frontmost application
+ * Tracks window details, app sessions, and Safari tab URL
  */
 export async function captureAndRecord(): Promise<void> {
 	const startTime = Date.now()
 
-	// Get the application list and frontmost app
+	// Get window details, frontmost app, and Safari tab URL if applicable
 	const runningAppsResult = await Errors.try(
 		Promise.resolve(getRunningApplications())
 	)
 	if (runningAppsResult.error) {
 		throw Errors.wrap(
 			runningAppsResult.error,
-			"Failed to get running applications"
+			"Failed to get window details"
 		)
 	}
-	const { visibleApps, frontmostApp } = runningAppsResult.data
+	const { windows, frontmostApp, frontmostTabUrl } = runningAppsResult.data
 
 	// Record the data
 	const recordResult = await Errors.try(
-		recordSnapshotData(visibleApps, frontmostApp)
+		recordSnapshotData(windows, frontmostApp, frontmostTabUrl)
 	)
 	if (recordResult.error) {
 		throw Errors.wrap(recordResult.error, "Snapshot metadata error")
@@ -68,7 +68,7 @@ if (require.main === module) {
 	console.log(
 		`WorkSmarter started. Capturing snapshots every ${CAPTURE_INTERVAL_MS / 1000} seconds.`
 	)
-	console.log("✓ Tracking visible applications and frontmost application")
+	console.log("✓ Tracking window sizes, titles, application start times, and Safari tabs")
 	console.log("Press Ctrl+C to stop.")
 
 	process.on("SIGINT", async () => {
