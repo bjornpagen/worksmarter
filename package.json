@@ -1,0 +1,30 @@
+{
+	"name": "worksmarter",
+	"version": "0.1.0",
+	"description": "A macOS application that captures screenshots at regular intervals",
+	"main": "index.ts",
+	"private": true,
+	"scripts": {
+		"format": "biome format --write .",
+		"lint": "biome lint --write .",
+		"build": "bun build index.ts --outdir ./dist",
+		"build:ffi": "clang -dynamiclib -o libget_visible_apps.so get_visible_apps.m -framework CoreGraphics -framework AppKit -arch x86_64 -arch arm64",
+		"db:push": "drizzle-kit push:sqlite",
+		"db:migrate": "bun drizzle-kit migrate",
+		"db:generate": "bun drizzle-kit generate"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.39.0",
+		"dotenv": "^16.4.7",
+		"drizzle-kit": "^0.30.5",
+		"drizzle-orm": "^0.40.0"
+	},
+	"trustedDependencies": ["@biomejs/biome"]
+}

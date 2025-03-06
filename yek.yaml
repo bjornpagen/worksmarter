@@ -1,0 +1,10 @@
+# Add patterns to ignore (in addition to .gitignore)
+ignore_patterns:
+  - "yek.yaml"
+  - "bun.lock"
+  - "biome.json"
+  - "tsconfig.json"
+  - "CLAUDE.md"
+  - "prd.md"
+  - "*.so"
+  - "drizzle/**"
