@@ -137,7 +137,7 @@ export async function recordSnapshotData(
 				// Determine if this window should have tab details
 				const isActiveBrowserWindow =
 					(windowDetail.bundleIdentifier === "com.apple.Safari" ||
-					 windowDetail.bundleIdentifier === "com.google.Chrome") &&
+						windowDetail.bundleIdentifier === "com.google.Chrome") &&
 					frontmostApp === windowDetail.bundleIdentifier &&
 					windowDetail.title === frontmostTabTitle
 

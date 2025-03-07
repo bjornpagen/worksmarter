@@ -17,16 +17,19 @@ export async function captureAndRecord(): Promise<void> {
 		Promise.resolve(getRunningApplications())
 	)
 	if (runningAppsResult.error) {
-		throw Errors.wrap(
-			runningAppsResult.error,
-			"Failed to get window details"
-		)
+		throw Errors.wrap(runningAppsResult.error, "Failed to get window details")
 	}
-	const { windows, frontmostApp, frontmostTabUrl, frontmostTabTitle } = runningAppsResult.data
+	const { windows, frontmostApp, frontmostTabUrl, frontmostTabTitle } =
+		runningAppsResult.data
 
 	// Record the data
 	const recordResult = await Errors.try(
-		recordSnapshotData(windows, frontmostApp, frontmostTabUrl, frontmostTabTitle)
+		recordSnapshotData(
+			windows,
+			frontmostApp,
+			frontmostTabUrl,
+			frontmostTabTitle
+		)
 	)
 	if (recordResult.error) {
 		throw Errors.wrap(recordResult.error, "Snapshot metadata error")
@@ -65,7 +68,9 @@ if (require.main === module) {
 	console.log(
 		`WorkSmarter started. Capturing snapshots every ${CAPTURE_INTERVAL_MS / 1000} seconds.`
 	)
-	console.log("✓ Tracking window sizes, titles, and Safari tabs (URL and title)")
+	console.log(
+		"✓ Tracking window sizes, titles, and Safari tabs (URL and title)"
+	)
 	console.log("Press Ctrl+C to stop.")
 
 	process.on("SIGINT", async () => {

@@ -16,7 +16,7 @@ export async function ensureDirectoriesExist(): Promise<void> {
 	const configDirResult = await Errors.try(
 		mkdir(CONFIG_DIR, { recursive: true })
 	)
-	
+
 	if (configDirResult.error) {
 		throw Errors.wrap(
 			configDirResult.error,
