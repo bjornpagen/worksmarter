@@ -1,0 +1,1 @@
+- precise timers for snapshot once per second
